@@ -22,4 +22,18 @@ This information can be found in scripts:
 5. **create_datasets.py**: Create datasets for training/validation/testing in the HDF5 format.
 
 
+# Jupyter notebook
 
+Launch the notebook server on manivald once
+```
+[manivald] screen
+[manivald] singularity exec /home/software/singularity/base.simg:latest jupyter notebook
+```
+Note the port and the token. You may close the SSH session, since `screen` keeps your notebook server running.
+
+Open an SSH tunnel for the notebook from your laptop to manivald:
+```
+[laptop] ssh -N -f -L localhost:XXXX:localhost:XXXX manivald.hep.kbfi.ee
+```
+
+Navigate from your laptop browser to the notebook `https://localhost:XXXX`
