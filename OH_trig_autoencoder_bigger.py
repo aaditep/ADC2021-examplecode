@@ -1,3 +1,4 @@
+#from memory_profiler import profile
 import pickle
 import os
 from contextlib import redirect_stdout
@@ -22,6 +23,7 @@ from func import mse_loss
 from sklearn.metrics import roc_curve, auc
 
 
+#@profile
 def autoencoder(to_save_m,m_save_path,save_plots,plot_name,EPOCHS,encdec_shape,latent_shape,seed):
     
     s_plots_path=m_save_path+"/"
@@ -49,7 +51,9 @@ def autoencoder(to_save_m,m_save_path,save_plots,plot_name,EPOCHS,encdec_shape,l
     BATCH_SIZE = 256
     print("Training model")
     autoencoder,FLOPs,history=AE_setup_training(s_plots_path,plot_name,save_plots,EPOCHS,BATCH_SIZE,encdec_shape
-                                                ,latent_shape,seed,X_train,X_test,X_val,signal_data,signal_labels)
+                                                ,latent_shape,seed,X_train,X_test,X_val,signal_labels)
+    
+    del X_val,X_train
     print("Model trained")
     if to_save_m=='y':
         #model_name = 'DENSE_AE_OH4_model_flops_test'
@@ -66,11 +70,13 @@ def autoencoder(to_save_m,m_save_path,save_plots,plot_name,EPOCHS,encdec_shape,l
     #reshape the results and reverse OH vectors with argmax to single type of object
     ground_truth,resh_type_results=OH_reverse_convert(AE_OH_results,signal_data,X_test)
     print("OH vectors reverse conversion complete")
+    del AE_OH_results,X_test
     #find attribute multiplicities for signal  and background
     truth_attributes,results_attributes=find_attribute_multiplicities(ground_truth,resh_type_results)
     print("Attribute multipliciti sorting complete")
     #Dataframe results
     truth_dfs,results_dfs=dataframing(ground_truth,resh_type_results,truth_attributes,results_attributes)
+    del ground_truth, resh_type_results, truth_attributes,results_attributes
     print("Dataframes created")
     #Plot results: mse loss, Roc curve, MET_pt attribute for signal and background
     print("Plotting results")
@@ -110,7 +116,7 @@ def read_bkg_and_signals(bkg_filename,signal_in):
     return X_train,X_test,X_val,signal_data,signal_labels
 
 def AE_setup_training(s_plots_path,plot_name,save_plots,EPOCHS,BATCH_SIZE,encdec_shape,latent_shape,seed
-                      ,X_train,X_test,X_val,signal_data,signal_labels):
+                      ,X_train,X_test,X_val,signal_labels):
     #Autoencoder(AE) model setup
     input_shape = 171#before 152 and before 57
     latent_dimension = latent_shape
@@ -162,6 +168,7 @@ def AE_setup_training(s_plots_path,plot_name,save_plots,EPOCHS,BATCH_SIZE,encdec
     #BATCH_SIZE = 1024
     history = autoencoder.fit(X_train, X_train, epochs = EPOCHS, batch_size = BATCH_SIZE,
                   validation_data=(X_val, X_val))
+    del X_val,X_train #For memory saving
     return autoencoder,FLOPs,history
     
 def predict_signal_bkg(signal_data,autoencoder,X_test):
@@ -197,8 +204,10 @@ def OH_reverse_convert(AE_OH_results,signal_data,X_test):
         reshaped_data=np.concatenate([event_wo_type,id_idmax],axis=-1)#concat.
         resh_type_results.append(reshaped_data)#add to list
     #reshaping for ground truth in order to dataframe it correctly
+    del AE_OH_results #form memory saving
     AE_OH_truth=signal_data
     AE_OH_truth.append(X_test)
+    del X_test
     for i in range(5):
         data=AE_OH_truth[i]#take list  with bkg and signals  flattened output
         data=np.reshape(data,(len(data), 19,9))#reshape events by 19 objects
@@ -287,10 +296,12 @@ def dataframing(ground_truth,resh_type_results,truth_attributes,results_attribut
         reshaped=ground_truth[i].reshape(len(ground_truth[i]),95)#19*5=95 before76=19*4
         conced=np.concatenate([reshaped,truth_attributes[i].T],axis=1)
         conced_truth.append(conced)
+    del ground_truth, truth_attributes #for memory saving
     for i in range(5):
         reshaped=resh_type_results[i].reshape(len(resh_type_results[i]),95)#
         conced=np.concatenate([reshaped,results_attributes[i].T],axis=1)
         conced_results.append(conced)
+    del resh_type_results, results_attributes #for memory saving
     #Turn data into dataframes    
     truth_dfs=[]
     d={}

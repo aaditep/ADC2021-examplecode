@@ -1,3 +1,7 @@
+#from memory_profiler import profile
+import pickle
+import os
+from contextlib import redirect_stdout
 import numpy as np
 from keras_flops import get_flops
 import time
@@ -19,9 +23,19 @@ from func import mse_loss
 from sklearn.metrics import roc_curve, auc
 
 
-def autoencoder(to_save_m,m_save_path,save_plots,s_plots_path):
+#@profile
+def autoencoder(to_save_m,m_save_path,save_plots,plot_name,EPOCHS,encdec_shape,latent_shape,seed):
     
+    s_plots_path=m_save_path+"/"
+    date= datetime.now().strftime("_%d_%m")
+    #plot_name = input("Enter plots name(date is added automatically): ")
+    plot_name = plot_name+date
+    
+    
+    filename = m_save_path+"/"
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
 
+    
     signal_in='./signals/oh_trig/'
     bkg_filename = './signals/oh_trig/BKG_OH_TRIG_OH_dataset.h5'
     X_train,X_test,X_val,signal_data,signal_labels=read_bkg_and_signals(bkg_filename,signal_in)
@@ -33,16 +47,19 @@ def autoencoder(to_save_m,m_save_path,save_plots,s_plots_path):
                      'leptoquark_LOWMASS_lepFilter_13TeV_output',
                      'background_for_training_output']
     
-    EPOCHS = 10
-    BATCH_SIZE = 1024
+    EPOCHS = EPOCHS
+    BATCH_SIZE = 256
     print("Training model")
-    autoencoder,FLOPs=AE_setup_training(EPOCHS,BATCH_SIZE,X_train,X_test,X_val,signal_data,signal_labels)
+    autoencoder,FLOPs,history=AE_setup_training(s_plots_path,plot_name,save_plots,EPOCHS,BATCH_SIZE,encdec_shape
+                                                ,latent_shape,seed,X_train,X_test,X_val,signal_labels)
+    
+    del X_val,X_train
     print("Model trained")
     if to_save_m=='y':
         #model_name = 'DENSE_AE_OH4_model_flops_test'
         #model_directory = './models/'
         print("Saving model..")
-        autoencoder.save(m_save_path+"/model")
+        autoencoder.save(m_save_path+"/"+plot_name+"_model")
         #save_model(model_directory+model_name, autoencoder)
         print("Model save complete")
     
@@ -53,15 +70,23 @@ def autoencoder(to_save_m,m_save_path,save_plots,s_plots_path):
     #reshape the results and reverse OH vectors with argmax to single type of object
     ground_truth,resh_type_results=OH_reverse_convert(AE_OH_results,signal_data,X_test)
     print("OH vectors reverse conversion complete")
+    del AE_OH_results,X_test
     #find attribute multiplicities for signal  and background
     truth_attributes,results_attributes=find_attribute_multiplicities(ground_truth,resh_type_results)
     print("Attribute multipliciti sorting complete")
     #Dataframe results
     truth_dfs,results_dfs=dataframing(ground_truth,resh_type_results,truth_attributes,results_attributes)
+    del ground_truth, resh_type_results, truth_attributes,results_attributes
     print("Dataframes created")
     #Plot results: mse loss, Roc curve, MET_pt attribute for signal and background
     print("Plotting results")
-    plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inference_t,FLOPs)
+    
+    #LA_data =plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inference_t
+    #                 ,FLOPs,history,plot_name,autoencoder)
+    
+    
+    plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inference_t
+            ,FLOPs,history,plot_name,autoencoder)
     
     
 def read_bkg_and_signals(bkg_filename,signal_in):
@@ -86,30 +111,49 @@ def read_bkg_and_signals(bkg_filename,signal_in):
         with h5py.File(signals_file[i], 'r') as file:
             test_data = np.array(file['Data'])
         signal_data.append(test_data)
+    del file#??
     
     return X_train,X_test,X_val,signal_data,signal_labels
 
-def AE_setup_training(EPOCHS,BATCH_SIZE,X_train,X_test,X_val,signal_data,signal_labels):
+def AE_setup_training(s_plots_path,plot_name,save_plots,EPOCHS,BATCH_SIZE,encdec_shape,latent_shape,seed
+                      ,X_train,X_test,X_val,signal_labels):
     #Autoencoder(AE) model setup
     input_shape = 171#before 152 and before 57
-    latent_dimension = 3
-    num_nodes=[16,8]
+    latent_dimension = latent_shape
+    #num_nodes=[16,8]
+    num_nodes=[encdec_shape,8]
+    #setting random seed
+    tf.random.set_seed(seed)
     
     #encoder
     inputArray = Input(shape=(input_shape))
-    x = Dense(num_nodes[0], use_bias=False)(inputArray)
+    x = Dense(num_nodes[0], use_bias=False)(inputArray) #Encode layer 1
     x = Activation('relu')(x)
-    x = Dense(latent_dimension, use_bias=False)(x)
+    
+    #x = Dense(num_nodes[0], use_bias=False)(x) #Encode layer 2
+    #x = Activation('relu')(x)
+    
+    x = Dense(latent_dimension, use_bias=False)(x)#Latent dimension
     encoder = Activation('relu')(x)
     
     #decoder
-    x = Dense(num_nodes[0], use_bias=False)(encoder)
+    x = Dense(num_nodes[0], use_bias=False)(encoder) # Decode layer 1
     x = Activation('relu')(x)
+    
+    #x = Dense(num_nodes[0], use_bias=False)(x) #Decode layer 2
+    #x = Activation('relu')(x)
     
     decoder = Dense(input_shape)(x)
     #Create AE
     autoencoder = Model(inputs = inputArray, outputs=decoder)
     autoencoder.summary()
+    
+    if save_plots == "n":
+        pass
+    else:
+        with open(s_plots_path+plot_name+'_modelsummary.txt', 'w') as f:
+            with redirect_stdout(f):
+                autoencoder.summary()
     
     #Compile AE
     autoencoder.compile(optimizer = keras.optimizers.Adam(), loss='mse')
@@ -124,7 +168,8 @@ def AE_setup_training(EPOCHS,BATCH_SIZE,X_train,X_test,X_val,signal_data,signal_
     #BATCH_SIZE = 1024
     history = autoencoder.fit(X_train, X_train, epochs = EPOCHS, batch_size = BATCH_SIZE,
                   validation_data=(X_val, X_val))
-    return autoencoder,FLOPs
+    del X_val,X_train #For memory saving
+    return autoencoder,FLOPs,history
     
 def predict_signal_bkg(signal_data,autoencoder,X_test):
     #Siia vist vaja panna inference aja võtmine ka
@@ -159,8 +204,10 @@ def OH_reverse_convert(AE_OH_results,signal_data,X_test):
         reshaped_data=np.concatenate([event_wo_type,id_idmax],axis=-1)#concat.
         resh_type_results.append(reshaped_data)#add to list
     #reshaping for ground truth in order to dataframe it correctly
+    del AE_OH_results #form memory saving
     AE_OH_truth=signal_data
     AE_OH_truth.append(X_test)
+    del X_test
     for i in range(5):
         data=AE_OH_truth[i]#take list  with bkg and signals  flattened output
         data=np.reshape(data,(len(data), 19,9))#reshape events by 19 objects
@@ -249,10 +296,12 @@ def dataframing(ground_truth,resh_type_results,truth_attributes,results_attribut
         reshaped=ground_truth[i].reshape(len(ground_truth[i]),95)#19*5=95 before76=19*4
         conced=np.concatenate([reshaped,truth_attributes[i].T],axis=1)
         conced_truth.append(conced)
+    del ground_truth, truth_attributes #for memory saving
     for i in range(5):
         reshaped=resh_type_results[i].reshape(len(resh_type_results[i]),95)#
         conced=np.concatenate([reshaped,results_attributes[i].T],axis=1)
         conced_results.append(conced)
+    del resh_type_results, results_attributes #for memory saving
     #Turn data into dataframes    
     truth_dfs=[]
     d={}
@@ -268,17 +317,18 @@ def dataframing(ground_truth,resh_type_results,truth_attributes,results_attribut
     
     return truth_dfs,results_dfs   
     
-def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inference_t,FLOPs):
+def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inference_t
+             ,FLOPs,history,plot_name,autoencoder):
     
     if save_plots == "y":
-        date= datetime.now().strftime("_%d_%m")
-        plot_name = input("Enter plots name(date is added automatically): ")
-        plot_name = plot_name+date
+        #date= datetime.now().strftime("_%d_%m")
+        #plot_name = input("Enter plots name(date is added automatically): ")
+        #plot_name = plot_name+date
         
         #save FLOPS and latency to txt file
         f= open(s_plots_path+plot_name+"_lat_FLOPs.txt","w+")
         f.write(f'Latency: {inference_t} microseconds \n')
-        f.write(f'FLOPs: {FLOPs}')
+        f.write(f'FLOPs: {FLOPs}\n')
         f.close()
     data_labels  = ['Ato4l_lepFilter_13TeV_input',
                  'hChToTauNu_13TeV_PU20.h5_input',
@@ -313,6 +363,7 @@ def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inferen
         plt.savefig(s_plots_path+plot_name+"_MSE.png")
         
     #Roc Curve plotting
+    signal_auc=[]#storing auc for pickle
     labels = np.concatenate([['Background'], np.array(signal_labels)])
     target_background = np.zeros(total_loss[0].shape[0])
     plt.figure(figsize=(10,8))
@@ -322,6 +373,7 @@ def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inferen
         predVal_loss = np.concatenate((total_loss[i], total_loss[0]))
         fpr_loss, tpr_loss, threshold_loss = roc_curve(trueVal, predVal_loss)
         auc_loss = auc(fpr_loss, tpr_loss)
+        signal_auc.append(auc_loss)
         plt.plot(fpr_loss, tpr_loss, "-", label='%s (auc = %.1f%%)'%(label,auc_loss*100.), linewidth=1.5)
         plt.semilogx()
         plt.semilogy()
@@ -477,7 +529,7 @@ def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inferen
     else:
         plt.savefig(s_plots_path+plot_name+"_JETS_mult.png")  
     
-    #Plot MET vs cos(phi) per event for ground truth and AE results
+        #Plot MET vs cos(phi) per event for ground truth and AE results
     bin_size=100
     #bins = np.linspace(0,10, 11)
     plt.figure(figsize=(10,6))
@@ -493,6 +545,8 @@ def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inferen
         for i, label in enumerate(data_labels):
             plt.hist(data[i]["MET_cos(φ)"],bins=bin_size, label=label, histtype='step', fill=False, linewidth=1.5,log=True)
         plt.yscale('log')
+        plt.axvline(1, color='red', linestyle='dashed', linewidth=1)
+        plt.axvline(-1, color='red', linestyle='dashed', linewidth=1)
         plt.xlabel("Met cos(phi)",fontsize=15)
         if n== 0:
             plt.ylabel("EVENTS",fontsize=15)
@@ -520,6 +574,8 @@ def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inferen
         for i, label in enumerate(data_labels):
             plt.hist(data[i]["MET_sin(φ)"],bins=bin_size, label=label, histtype='step', fill=False, linewidth=1.5,log=True)
         plt.yscale('log')
+        plt.axvline(1, color='red', linestyle='dashed', linewidth=1)
+        plt.axvline(-1, color='red', linestyle='dashed', linewidth=1)
         plt.xlabel("Met sin(phi)",fontsize=15)
         if n== 0:
             plt.ylabel("EVENTS",fontsize=15)
@@ -556,21 +612,57 @@ def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inferen
         pass
     else:
         plt.savefig(s_plots_path+plot_name+"_MET_Pt.png")
+        
+    #Plot training_loss val_loss
+    # Get training and test loss histories
+    training_loss = history.history['loss']
+    test_loss = history.history['val_loss']
+    lower_lim=min([min(training_loss), min(test_loss)])
+    upper_lim=np.mean([np.mean(training_loss[1:3]), np.mean(test_loss[1:3])])+0.1
+    # Create count of the number of epochs
+    epoch_count = range(1, len(training_loss) + 1)
+    
+    # Visualize loss history
+    plt.figure(figsize=(10,5))
+    plt.plot(epoch_count, training_loss, 'r--')
+    plt.plot(epoch_count, test_loss, 'b-')
+    plt.legend(['Training Loss', 'Test Loss'])
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.ylim((lower_lim,upper_lim))
+    plt.show()
+    if save_plots == "n":
+        pass
+    else:
+        plt.savefig(s_plots_path+plot_name+"_loss.png")
+    
+    #Save AUC of model and losses
+    LA_data={"test_loss" : test_loss ,"training_loss" : training_loss , "auc" : signal_auc , "model_name" : plot_name} #Loss and auc data
+    if save_plots == "n":
+        pass
+    else:
+        with open(s_plots_path+plot_name+'_pkl.pkl', 'wb') as handle:
+            pickle.dump(LA_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
     
     
-    
+#Inputs#to_save_m,m_save_path,save_plots,s_plots_path,plot_name,EPOCHS,encdec_shape,latent_shape,seed    
     
     
     
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--save_model", type=str, default="n", help="Save model or not", choices=["y","n"])
-    parser.add_argument("--m_save_path", type=str, default=None, help="Save model to path(with intended model name)")
+    parser.add_argument("--m_save_path", type=str, default=None, help="Path to save models and plots")
     parser.add_argument("--save_plots", type=str, default="n", help="Save plots or not", choices=["y", "n"] )
-    parser.add_argument("--s_plots_path", type=str, default=None, help="Save plots to path..")
+    parser.add_argument("--plot_name", type=str, default=None, help="plots names to distinguish..")
+    parser.add_argument("--EPOCHS", type=int, default=10, help="Number of epochs for training")
+    parser.add_argument("--encdec_shape", type=int, default=16, help="First variable of layer shape for encoder and decoder. (encdec_shape,8)")
+    parser.add_argument("--latent_shape", type=int, default=3, help="Size of latent dimension")
+    parser.add_argument("--seed", type=int, default=1024, help="Random seed variable")
     args = parser.parse_args()
     return args
 
 if __name__ == "__main__":
     args = vars(parse_args())
-    autoencoder(args['save_model'],args['m_save_path'],args['save_plots'],args['s_plots_path'])
+    autoencoder(args['save_model'],args['m_save_path'],args['save_plots'],
+               args['plot_name'],args['EPOCHS'],args['encdec_shape'],args['latent_shape'],args['seed'])
