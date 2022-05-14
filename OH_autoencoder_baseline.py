@@ -36,9 +36,10 @@ def autoencoder(to_save_m,m_save_path,save_plots,plot_name,EPOCHS,encdec_shape,l
     os.makedirs(os.path.dirname(filename), exist_ok=True)
 
     
-    signal_in='./signals/oh_stnd/'
-    #signal_in='./signals/oh_trig/'
-    bkg_filename = './signals/oh_stnd/BKG_OH_stnd_dataset.h5'
+    signal_in='./baseline_data/'
+    bkg_filename = './baseline_data/BKG_OH_baseline_OH_dataset.h5'
+    
+    
     #signal_in='./signals/oh_trig/'
     #bkg_filename = './signals/oh_trig/BKG_OH_TRIG_stnd_dataset.h5'
     #bkg_filename = './signals/oh_trig/BKG_OH_TRIG_OH_dataset.h5'
@@ -97,15 +98,14 @@ def read_bkg_and_signals(bkg_filename,signal_in):
     #Outputs training,test,validation and signal_data data
     #From assigned source/path
     # add correct path to signal files
-    signals_file = [signal_in+'Ato4l_lepFilter_13TeV_input_stnd_dataset.h5',
-                signal_in+'hChToTauNu_13TeV_PU20_input_stnd_dataset.h5',
-                signal_in+'hToTauTau_13TeV_PU20_input_stnd_dataset.h5',
-                signal_in+'leptoquark_LOWMASS_lepFilter_13TeV_input_stnd_dataset.h5'] 
-    
+    signals_file = [signal_in+'Ato4l_lepFilter_13TeV_input_OH_dataset.h5',
+                signal_in+'hChToTauNu_13TeV_PU20_input_OH_dataset.h5',
+                signal_in+'hToTauTau_13TeV_PU20_input_OH_dataset.h5',
+                signal_in+'leptoquark_LOWMASS_lepFilter_13TeV_input_OH_dataset.h5'] 
     #signals_file = [signal_in+'Ato4l_lepFilter_13TeV_input_OH_trig_OH_dataset.h5',
     #            signal_in+'hChToTauNu_13TeV_PU20_input_OH_trig_OH_dataset.h5',
     #            signal_in+'hToTauTau_13TeV_PU20_input_OH_trig_OH_dataset.h5',
-    #            signal_in+'leptoquark_LOWMASS_lepFilter_13TeV_input_OH_trig_OH_dataset.h5']  
+    #            signal_in+'leptoquark_LOWMASS_lepFilter_13TeV_input_OH_trig_OH_dataset.h5'] 
     # add correct signal labels
     signal_labels = ['Ato4l_lepFilter_13TeV_dataset',
                      'hChToTauNu_13TeV_PU20_dataset',
@@ -127,7 +127,7 @@ def read_bkg_and_signals(bkg_filename,signal_in):
 def AE_setup_training(s_plots_path,plot_name,save_plots,EPOCHS,BATCH_SIZE,encdec_shape,latent_shape,seed
                       ,X_train,X_test,X_val,signal_labels):
     #Autoencoder(AE) model setup
-    input_shape = 171#before 152 and before 57
+    input_shape = 152#before 152 and before 57
     latent_dimension = latent_shape
     #num_nodes=[16,8]
     num_nodes=[encdec_shape,8]
@@ -139,18 +139,18 @@ def AE_setup_training(s_plots_path,plot_name,save_plots,EPOCHS,BATCH_SIZE,encdec
     x = Dense(num_nodes[0], use_bias=False)(inputArray) #Encode layer 1
     x = Activation('relu')(x)
     
-    x = Dense(num_nodes[0]/2, use_bias=False)(x) #Encode layer 2
-    x = Activation('relu')(x)
+    #x = Dense(num_nodes[0], use_bias=False)(x) #Encode layer 2
+    #x = Activation('relu')(x)
     
     x = Dense(latent_dimension, use_bias=False)(x)#Latent dimension
     encoder = Activation('relu')(x)
     
     #decoder
-    x = Dense(num_nodes[0]/2, use_bias=False)(encoder) # Decode layer 1
+    x = Dense(num_nodes[0], use_bias=False)(encoder) # Decode layer 1
     x = Activation('relu')(x)
     
-    x = Dense(num_nodes[0], use_bias=False)(x) #Decode layer 2
-    x = Activation('relu')(x)
+    #x = Dense(num_nodes[0], use_bias=False)(x) #Decode layer 2
+    #x = Activation('relu')(x)
     
     decoder = Dense(input_shape)(x)
     #Create AE
@@ -205,11 +205,11 @@ def OH_reverse_convert(AE_OH_results,signal_data,X_test):
     #Reshaping for autoencoder results
     for i in range(5):
         data=AE_OH_results[i]#take list  with bkg and signals  flattened output
-        data=np.reshape(data,(len(data), 19,9))#reshape events by 19 objects
+        data=np.reshape(data,(len(data), 19,8))#reshape events by 19 objects
         id_oh=data[:,:,-5:]#take OH vector ids
         id_idmax=np.argmax(id_oh, axis=-1)#find the type
         id_idmax=np.reshape(id_idmax,(len(data),19,1))#reshape for concat
-        event_wo_type=data[:,:,:4]#take events wo. type
+        event_wo_type=data[:,:,:3]#take events wo. type
         reshaped_data=np.concatenate([event_wo_type,id_idmax],axis=-1)#concat.
         resh_type_results.append(reshaped_data)#add to list
     #reshaping for ground truth in order to dataframe it correctly
@@ -219,11 +219,11 @@ def OH_reverse_convert(AE_OH_results,signal_data,X_test):
     del X_test
     for i in range(5):
         data=AE_OH_truth[i]#take list  with bkg and signals  flattened output
-        data=np.reshape(data,(len(data), 19,9))#reshape events by 19 objects
+        data=np.reshape(data,(len(data), 19,8))#reshape events by 19 objects
         id_oh=data[:,:,-5:]#take OH vector ids
         id_idmax=np.argmax(id_oh, axis=-1)#find the type
         id_idmax=np.reshape(id_idmax,(len(data),19,1))#reshape for concat
-        event_wo_type=data[:,:,:4]#take events wo. type
+        event_wo_type=data[:,:,:3]#take events wo. type
         reshaped_data=np.concatenate([event_wo_type,id_idmax],axis=-1)#concat.
         ground_truth.append(reshaped_data)#add to list
     
@@ -259,7 +259,7 @@ def find_attribute_multiplicities(ground_truth,resh_type_results):
             JETID=[]
             packed=[]
             for i in range(len(data[k])):
-                ith_event=data[k][i][:,4]
+                ith_event=data[k][i][:,3]
                 MET.append(np.count_nonzero(ith_event == 1))
                 ELEKT.append(np.count_nonzero(ith_event == 2))
                 MUON.append(np.count_nonzero(ith_event == 3))
@@ -280,34 +280,34 @@ def find_attribute_multiplicities(ground_truth,resh_type_results):
 def dataframing(ground_truth,resh_type_results,truth_attributes,results_attributes):
     #Set up framing column names
     column_names=[]
-    columns=['P_t','η','cos(φ)','sin(φ)','type']
+    columns=['P_t','η','φ','type']
     objects=['MET','e/γ_1','e/γ_2','e/γ_3','e/γ_4','μ_1','μ_2','μ_3','μ_4','jet_1','jet_2','jet_3',
                        'jet_4','jet_5','jet_6','jet_7','jet_8','jet_9','jet_10']
     #MET
-    for i in range(5):#before 4
+    for i in range(4):#before 4
         column_names.append(objects[0]+"_"+columns[i])
     #electron/photon
     for i in range(4):
-        [column_names.append(objects[i+1]+"_"+columns[j]) for j in range(5)]
+        [column_names.append(objects[i+1]+"_"+columns[j]) for j in range(4)]#before 4
     #muons      
     for i in range(4):
-        [column_names.append(objects[i+5]+"_"+columns[j]) for j in range(5)]
+        [column_names.append(objects[i+5]+"_"+columns[j]) for j in range(4)]#before 4
     #jets
     for i in range(10):
-        [column_names.append(objects[i+9]+"_"+columns[j]) for j in range(5)]
+        [column_names.append(objects[i+9]+"_"+columns[j]) for j in range(4)]#before 4
     #Multiplicity of MET,ELEKt etc
-    [column_names.append(["MET","ELEKT","MUON","JETS"][i]) for i in range(4)]
+    [column_names.append(["MET","ELEKT","MUON","JETS"][i]) for i in range(4)]#before 4
     #concatenate results and their attributes
     conced_truth=[]
     conced_results=[]
     for i in range(5):
         #shape(N-events,cardinality(19),attributes(4))
-        reshaped=ground_truth[i].reshape(len(ground_truth[i]),95)#19*5=95 before76=19*4
+        reshaped=ground_truth[i].reshape(len(ground_truth[i]),76)#19*5=95 before76=19*4
         conced=np.concatenate([reshaped,truth_attributes[i].T],axis=1)
         conced_truth.append(conced)
     del ground_truth, truth_attributes #for memory saving
     for i in range(5):
-        reshaped=resh_type_results[i].reshape(len(resh_type_results[i]),95)#
+        reshaped=resh_type_results[i].reshape(len(resh_type_results[i]),76)#
         conced=np.concatenate([reshaped,results_attributes[i].T],axis=1)
         conced_results.append(conced)
     del resh_type_results, results_attributes #for memory saving
@@ -323,6 +323,7 @@ def dataframing(ground_truth,resh_type_results,truth_attributes,results_attribut
         d["df_"+str(i)]=pd.DataFrame(conced_results[i])
         d["df_"+str(i)].columns=column_names
         results_dfs.append(d["df_"+str(i)]) 
+    
     
     return truth_dfs,results_dfs   
     
@@ -344,6 +345,7 @@ def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inferen
                  'hToTauTau_13TeV_PU20.h5_input',
                  'leptoquark_LOWMASS_lepFilter_13TeV_input',
                  'background_for_training.h5_input']
+    
     #save ground truth
     with open(s_plots_path+plot_name+'_truth.pickle', 'wb') as handle:
         pickle.dump(truth_dfs, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -409,7 +411,7 @@ def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inferen
     
     #2d histogramm plotting MET P_t
     
-    bins=np.linspace(0,50,num=150)
+    bins=np.linspace(0,250,num=150)
     fig, axes = plt.subplots(nrows=2, ncols=2,figsize=(15,15))
     #signal plotting
     for ax,i in zip(axes.flat[0:],[0,1,2,3]):
@@ -436,7 +438,7 @@ def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inferen
         plt.savefig(s_plots_path+plot_name+"_bkg_MET.png")
      
     #2d histogramm first JET P_t
-    bins=np.linspace(0,50,num=150)
+    bins=np.linspace(0,250,num=150)
     fig, axes = plt.subplots(nrows=2, ncols=2,figsize=(15,15))
     #signal plotting
     for ax,i in zip(axes.flat[0:],[0,1,2,3]):
@@ -548,7 +550,7 @@ def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inferen
     bin_size=100
     #bins = np.linspace(0,10, 11)
     plt.figure(figsize=(10,6))
-    plt.suptitle('MET cos(phi) per event for ground truth and results',fontsize=20)
+    plt.suptitle('MET φ per event for ground truth and results',fontsize=20)
     for n in range(2):
         if n == 0:
             data=truth_dfs
@@ -558,14 +560,14 @@ def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inferen
             string="AE results "   
         plt.subplot(1, 2, n+1)
         for i, label in enumerate(data_labels):
-            plt.hist(data[i]["MET_cos(φ)"],bins=bin_size, label=label, histtype='step', fill=False, linewidth=1.5,log=True)
+            plt.hist(data[i]["MET_φ"],bins=bin_size, label=label, histtype='step', fill=False, linewidth=1.5,log=True)
         plt.yscale('log')
-        plt.axvline(1.5, color='red', linestyle='dashed', linewidth=1)
-        plt.axvline(-1.5, color='red', linestyle='dashed', linewidth=1)
-        plt.xlabel("Met cos(phi)",fontsize=15)
+        plt.axvline(np.pi, color='red', linestyle='dashed', linewidth=1)
+        plt.axvline(-np.pi, color='red', linestyle='dashed', linewidth=1)
+        plt.xlabel("Met φ",fontsize=15)
         if n== 0:
             plt.ylabel("EVENTS",fontsize=15)
-        plt.title(string+'MET cos(phi) vs events',fontsize=15)
+        plt.title(string+'MET φ vs events',fontsize=15)
         if n == 0:
             plt.legend(bbox_to_anchor=(0,-0.4), loc="lower left")
     if save_plots == "n":
@@ -577,7 +579,7 @@ def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inferen
     bin_size=100
     #bins = np.linspace(0,10, 11)
     plt.figure(figsize=(10,6))
-    plt.suptitle('MET sin(phi) per event for ground truth and results',fontsize=20)
+    plt.suptitle('MET φ per event for ground truth and results',fontsize=20)
     for n in range(2):
         if n == 0:
             data=truth_dfs
@@ -587,14 +589,14 @@ def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inferen
             string="AE results "   
         plt.subplot(1, 2, n+1)
         for i, label in enumerate(data_labels):
-            plt.hist(data[i]["MET_sin(φ)"],bins=bin_size, label=label, histtype='step', fill=False, linewidth=1.5,log=True)
+            plt.hist(data[i]["MET_φ"],bins=bin_size, label=label, histtype='step', fill=False, linewidth=1.5,log=True)
         plt.yscale('log')
-        plt.axvline(1.5, color='red', linestyle='dashed', linewidth=1)
-        plt.axvline(-1.5, color='red', linestyle='dashed', linewidth=1)
-        plt.xlabel("Met sin(phi)",fontsize=15)
+        plt.axvline(np.pi, color='red', linestyle='dashed', linewidth=1)
+        plt.axvline(-np.pi, color='red', linestyle='dashed', linewidth=1)
+        plt.xlabel("Met φ",fontsize=15)
         if n== 0:
             plt.ylabel("EVENTS",fontsize=15)
-        plt.title(string+'MET sin(phi) vs events',fontsize=15)
+        plt.title(string+'MET φ vs events',fontsize=15)
         if n == 0:
             plt.legend(bbox_to_anchor=(0,-0.4), loc="lower left")
     if save_plots == "n":
@@ -633,7 +635,7 @@ def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inferen
     training_loss = history.history['loss']
     test_loss = history.history['val_loss']
     lower_lim=min([min(training_loss), min(test_loss)])
-    upper_lim=np.mean([np.mean(training_loss[1:3]), np.mean(test_loss[1:3])])#+0.1
+    upper_lim=np.mean([np.mean(training_loss[1:3]), np.mean(test_loss[1:3])])+0.1
     # Create count of the number of epochs
     epoch_count = range(1, len(training_loss) + 1)
     

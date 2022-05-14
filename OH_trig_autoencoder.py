@@ -36,8 +36,13 @@ def autoencoder(to_save_m,m_save_path,save_plots,plot_name,EPOCHS,encdec_shape,l
     os.makedirs(os.path.dirname(filename), exist_ok=True)
 
     
-    signal_in='./signals/oh_trig/'
-    bkg_filename = './signals/oh_trig/BKG_OH_TRIG_OH_dataset.h5'
+    signal_in='./signals/oh_stnd/'
+    bkg_filename = './signals/oh_stnd/BKG_OH_stnd_dataset.h5'
+    
+    
+    #signal_in='./signals/oh_trig/'
+    #bkg_filename = './signals/oh_trig/BKG_OH_TRIG_stnd_dataset.h5'
+    #bkg_filename = './signals/oh_trig/BKG_OH_TRIG_OH_dataset.h5'
     X_train,X_test,X_val,signal_data,signal_labels=read_bkg_and_signals(bkg_filename,signal_in)
     
     # add correct signal labels
@@ -93,10 +98,14 @@ def read_bkg_and_signals(bkg_filename,signal_in):
     #Outputs training,test,validation and signal_data data
     #From assigned source/path
     # add correct path to signal files
-    signals_file = [signal_in+'Ato4l_lepFilter_13TeV_input_OH_trig_OH_dataset.h5',
-                signal_in+'hChToTauNu_13TeV_PU20_input_OH_trig_OH_dataset.h5',
-                signal_in+'hToTauTau_13TeV_PU20_input_OH_trig_OH_dataset.h5',
-                signal_in+'leptoquark_LOWMASS_lepFilter_13TeV_input_OH_trig_OH_dataset.h5'] 
+    signals_file = [signal_in+'Ato4l_lepFilter_13TeV_input_stnd_dataset.h5',
+                signal_in+'hChToTauNu_13TeV_PU20_input_stnd_dataset.h5',
+                signal_in+'hToTauTau_13TeV_PU20_input_stnd_dataset.h5',
+                signal_in+'leptoquark_LOWMASS_lepFilter_13TeV_input_stnd_dataset.h5'] 
+    #signals_file = [signal_in+'Ato4l_lepFilter_13TeV_input_OH_trig_OH_dataset.h5',
+    #            signal_in+'hChToTauNu_13TeV_PU20_input_OH_trig_OH_dataset.h5',
+    #            signal_in+'hToTauTau_13TeV_PU20_input_OH_trig_OH_dataset.h5',
+    #            signal_in+'leptoquark_LOWMASS_lepFilter_13TeV_input_OH_trig_OH_dataset.h5'] 
     # add correct signal labels
     signal_labels = ['Ato4l_lepFilter_13TeV_dataset',
                      'hChToTauNu_13TeV_PU20_dataset',
@@ -130,8 +139,8 @@ def AE_setup_training(s_plots_path,plot_name,save_plots,EPOCHS,BATCH_SIZE,encdec
     x = Dense(num_nodes[0], use_bias=False)(inputArray) #Encode layer 1
     x = Activation('relu')(x)
     
-    #x = Dense(num_nodes[0], use_bias=False)(x) #Encode layer 2
-    #x = Activation('relu')(x)
+    x = Dense(num_nodes[0], use_bias=False)(x) #Encode layer 2
+    x = Activation('relu')(x)
     
     x = Dense(latent_dimension, use_bias=False)(x)#Latent dimension
     encoder = Activation('relu')(x)
@@ -140,8 +149,8 @@ def AE_setup_training(s_plots_path,plot_name,save_plots,EPOCHS,BATCH_SIZE,encdec
     x = Dense(num_nodes[0], use_bias=False)(encoder) # Decode layer 1
     x = Activation('relu')(x)
     
-    #x = Dense(num_nodes[0], use_bias=False)(x) #Decode layer 2
-    #x = Activation('relu')(x)
+    x = Dense(num_nodes[0], use_bias=False)(x) #Decode layer 2
+    x = Activation('relu')(x)
     
     decoder = Dense(input_shape)(x)
     #Create AE
@@ -394,7 +403,7 @@ def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inferen
     
     #2d histogramm plotting MET P_t
     
-    bins=np.linspace(0,250,num=150)
+    bins=np.linspace(0,50,num=150)
     fig, axes = plt.subplots(nrows=2, ncols=2,figsize=(15,15))
     #signal plotting
     for ax,i in zip(axes.flat[0:],[0,1,2,3]):
@@ -421,7 +430,7 @@ def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inferen
         plt.savefig(s_plots_path+plot_name+"_bkg_MET.png")
      
     #2d histogramm first JET P_t
-    bins=np.linspace(0,250,num=150)
+    bins=np.linspace(0,50,num=150)
     fig, axes = plt.subplots(nrows=2, ncols=2,figsize=(15,15))
     #signal plotting
     for ax,i in zip(axes.flat[0:],[0,1,2,3]):
@@ -545,8 +554,8 @@ def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inferen
         for i, label in enumerate(data_labels):
             plt.hist(data[i]["MET_cos(φ)"],bins=bin_size, label=label, histtype='step', fill=False, linewidth=1.5,log=True)
         plt.yscale('log')
-        plt.axvline(1, color='red', linestyle='dashed', linewidth=1)
-        plt.axvline(-1, color='red', linestyle='dashed', linewidth=1)
+        plt.axvline(1.5, color='red', linestyle='dashed', linewidth=1)
+        plt.axvline(-1.5, color='red', linestyle='dashed', linewidth=1)
         plt.xlabel("Met cos(phi)",fontsize=15)
         if n== 0:
             plt.ylabel("EVENTS",fontsize=15)
@@ -574,8 +583,8 @@ def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inferen
         for i, label in enumerate(data_labels):
             plt.hist(data[i]["MET_sin(φ)"],bins=bin_size, label=label, histtype='step', fill=False, linewidth=1.5,log=True)
         plt.yscale('log')
-        plt.axvline(1, color='red', linestyle='dashed', linewidth=1)
-        plt.axvline(-1, color='red', linestyle='dashed', linewidth=1)
+        plt.axvline(1.5, color='red', linestyle='dashed', linewidth=1)
+        plt.axvline(-1.5, color='red', linestyle='dashed', linewidth=1)
         plt.xlabel("Met sin(phi)",fontsize=15)
         if n== 0:
             plt.ylabel("EVENTS",fontsize=15)
@@ -618,7 +627,7 @@ def plotting(truth_dfs,results_dfs,signal_labels,s_plots_path,save_plots,inferen
     training_loss = history.history['loss']
     test_loss = history.history['val_loss']
     lower_lim=min([min(training_loss), min(test_loss)])
-    upper_lim=np.mean([np.mean(training_loss[1:3]), np.mean(test_loss[1:3])])+0.1
+    upper_lim=np.mean([np.mean(training_loss[1:3]), np.mean(test_loss[1:3])])#+0.1
     # Create count of the number of epochs
     epoch_count = range(1, len(training_loss) + 1)
     
