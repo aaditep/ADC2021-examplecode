@@ -36,12 +36,12 @@ def autoencoder(to_save_m,m_save_path,save_plots,plot_name,EPOCHS,encdec_shape,l
     os.makedirs(os.path.dirname(filename), exist_ok=True)
 
     
-    signal_in='./signals/oh_stnd/'
+    #signal_in='./signals/oh_stnd/'
     #signal_in='./signals/oh_trig/'
-    bkg_filename = './signals/oh_stnd/BKG_OH_stnd_dataset.h5'
-    #signal_in='./signals/oh_trig/'
+    #bkg_filename = './signals/oh_stnd/BKG_OH_stnd_dataset.h5'
+    signal_in='./signals/oh_trig/'
     #bkg_filename = './signals/oh_trig/BKG_OH_TRIG_stnd_dataset.h5'
-    #bkg_filename = './signals/oh_trig/BKG_OH_TRIG_OH_dataset.h5'
+    bkg_filename = './signals/oh_trig/BKG_OH_TRIG_OH_dataset.h5'
     X_train,X_test,X_val,signal_data,signal_labels=read_bkg_and_signals(bkg_filename,signal_in)
     
     # add correct signal labels
@@ -97,16 +97,16 @@ def read_bkg_and_signals(bkg_filename,signal_in):
     #Outputs training,test,validation and signal_data data
     #From assigned source/path
     # add correct path to signal files
-    signals_file = [signal_in+'Ato4l_lepFilter_13TeV_input_stnd_dataset.h5',
-                signal_in+'hChToTauNu_13TeV_PU20_input_stnd_dataset.h5',
-                signal_in+'hToTauTau_13TeV_PU20_input_stnd_dataset.h5',
-                signal_in+'leptoquark_LOWMASS_lepFilter_13TeV_input_stnd_dataset.h5'] 
-    
-    #signals_file = [signal_in+'Ato4l_lepFilter_13TeV_input_OH_trig_OH_dataset.h5',
-    #            signal_in+'hChToTauNu_13TeV_PU20_input_OH_trig_OH_dataset.h5',
-    #            signal_in+'hToTauTau_13TeV_PU20_input_OH_trig_OH_dataset.h5',
-    #            signal_in+'leptoquark_LOWMASS_lepFilter_13TeV_input_OH_trig_OH_dataset.h5']  
-    # add correct signal labels
+    #signals_file = [signal_in+'Ato4l_lepFilter_13TeV_input_stnd_dataset.h5',
+    #            signal_in+'hChToTauNu_13TeV_PU20_input_stnd_dataset.h5',
+    #            signal_in+'hToTauTau_13TeV_PU20_input_stnd_dataset.h5',
+    #            signal_in+'leptoquark_LOWMASS_lepFilter_13TeV_input_stnd_dataset.h5'] 
+    #
+    signals_file = [signal_in+'Ato4l_lepFilter_13TeV_input_OH_trig_OH_dataset.h5',
+                signal_in+'hChToTauNu_13TeV_PU20_input_OH_trig_OH_dataset.h5',
+                signal_in+'hToTauTau_13TeV_PU20_input_OH_trig_OH_dataset.h5',
+                signal_in+'leptoquark_LOWMASS_lepFilter_13TeV_input_OH_trig_OH_dataset.h5']  
+    #add correct signal labels
     signal_labels = ['Ato4l_lepFilter_13TeV_dataset',
                      'hChToTauNu_13TeV_PU20_dataset',
                      'hToTauTau_13TeV_PU20_dataset',
@@ -139,15 +139,15 @@ def AE_setup_training(s_plots_path,plot_name,save_plots,EPOCHS,BATCH_SIZE,encdec
     x = Dense(num_nodes[0], use_bias=False)(inputArray) #Encode layer 1
     x = Activation('relu')(x)
     
-    x = Dense(num_nodes[0], use_bias=False)(x) #Encode layer 2
-    x = Activation('relu')(x)
+    #x = Dense(num_nodes[0], use_bias=False)(x) #Encode layer 2
+    #x = Activation('relu')(x)
     
     x = Dense(latent_dimension, use_bias=False)(x)#Latent dimension
     encoder = Activation('relu')(x)
     
     #decoder
-    x = Dense(num_nodes[0], use_bias=False)(encoder) # Decode layer 1
-    x = Activation('relu')(x)
+    #x = Dense(num_nodes[0], use_bias=False)(encoder) # Decode layer 1
+    #x = Activation('relu')(x)
     
     x = Dense(num_nodes[0], use_bias=False)(x) #Decode layer 2
     x = Activation('relu')(x)
